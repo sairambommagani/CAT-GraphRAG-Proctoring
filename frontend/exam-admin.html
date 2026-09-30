@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam Content Admin</title>
+<style>
+  :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --accent:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 1180px; margin: 24px auto; padding: 0 16px; }
+  header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  h1 { margin: 0 12px 0 0; font-size: 22px; } h2 { font-size: 15px; margin: 0 0 8px; }
+  input, textarea, select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  button { font: inherit; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .tabs { display: flex; gap: 6px; margin: 8px 0 14px; flex-wrap: wrap; }
+  .tabs button.on { background: var(--text); color: #fff; border-color: var(--text); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .muted { color: var(--muted); } .small { font-size: 12px; }
+  .pill { padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: #e2e8f0; }
+  .ok { background: #dcfce7; color: #166534; } .warn { background: #fef3c7; color: #92400e; } .bad { background: #fee2e2; color: #991b1b; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  ol.opts { margin: 6px 0; padding-left: 22px; } ol.opts li.key { font-weight: 700; color: #166534; }
+  .quote { background: #f1f5f9; border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 4px; margin: 6px 0; font-size: 13px; }
+  textarea.md { width: 100%; min-height: 420px; font: 13px/1.45 ui-monospace, monospace; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .stat b { font-size: 22px; display: block; }
+  #log { white-space: pre-wrap; font-size: 12px; color: var(--muted); }
+  section[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Exam content (GraphRAG)</h1>
+    <input id="token" type="password" placeholder="Admin token">
+    <button class="primary" id="load">Load</button>
+    <a href="review.html" class="small">Proctoring review →</a>
+  </header>
+  <div class="tabs" id="tabs">
+    <button data-t="overview" class="on">Knowledge graph</button>
+    <button data-t="generate">Generate questions</button>
+    <button data-t="review">Review drafts <span id="ndraft" class="pill">0</span></button>
+    <button data-t="bank">Question bank</button>
+    <button data-t="analytics">Performance analytics</button>
+    <button data-t="syllabus">Syllabus</button>
+    <button data-t="ask">Ask</button>
+  </div>
+
+  <section id="t-overview">
+    <div class="card"><h2 id="title">–</h2><div class="grid2" id="stats"></div></div>
+    <div class="card"><h2>Exam blueprint</h2><table id="blueprint"></table></div>
+  </section>
+
+  <section id="t-generate" hidden>
+    <div class="card">
+      <h2>Topics that need questions (from the graph)</h2>
+      <p class="small muted">An NVIDIA NIM model writes questions from the topic's syllabus passage and its prerequisite topics.
+        Each question is checked in three ways: it must be grounded in the passage, a second model call must pick the same answer, and it must not duplicate an existing question. Accepted questions become drafts for you to review.</p>
+      <div class="row"><label>Questions per topic <select id="per"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+        <button id="relations">Extract concept relations (NIM)</button><span class="small muted" id="relinfo"></span></div>
+      <table id="coverage"></table>
+    </div>
+    <div class="card"><h2>Last generation</h2><div id="log" class="small">–</div></div>
+  </section>
+
+  <section id="t-review" hidden><div id="drafts"></div></section>
+  <section id="t-bank" hidden><div class="card"><table id="bank"></table></div></section>
+
+  <section id="t-analytics" hidden>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Item statistics</h2><span class="small muted" id="anmeta"></span>
+        <button id="calibrate">Apply calibrated difficulties</button></div>
+      <p class="small muted">p = share correct · r<sub>pb</sub> = point-biserial discrimination against final ability · expected = IRT-predicted share correct. The "possible leak" flag means far more candidates answer correctly than the difficulty predicts.</p>
+      <table id="items"></table>
+    </div>
+  </section>
+
+  <section id="t-syllabus" hidden>
+    <div class="card">
+      <div class="row"><h2 style="margin:0">Syllabus (source of the knowledge graph)</h2>
+        <button class="primary" id="savesyl">Save &amp; re-index</button>
+        <label class="small">Convert a document (PDF/DOCX/TXT) with NIM: <input type="file" id="doc" accept=".pdf,.docx,.txt,.md"></label></div>
+      <p class="small muted">Format: <code>## Section</code> + <code>weight:</code>, then <code>### Topic</code> + optional <code>requires:</code>, and **concepts** in bold. A converted document only appears here as a draft; review it and press Save to apply.</p>
+      <textarea class="md" id="md"></textarea>
+    </div>
+  </section>
+
+  <section id="t-ask" hidden>
+    <div class="card">
+      <h2>Ask the exam knowledge graph</h2>
+      <div class="row"><input id="q" style="flex:1" placeholder="e.g. Which topics do candidates fail most?  What does Deep Network Training require?  Which concepts have no questions?">
+        <button class="primary" id="askbtn">Ask</button></div>
+      <p class="small muted" id="method"></p><div id="answer"></div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+try { $("token").value = sessionStorage.getItem("proctorToken") || ""; } catch (e) {}
+const hdr = (json = true) => Object.assign({ "X-Admin-Token": $("token").value }, json ? { "Content-Type": "application/json" } : {});
+async function api(method, path, body) {
+  const r = await fetch("/exam/admin" + path, { method, headers: hdr(), body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json();
+}
+document.querySelectorAll("#tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  document.querySelectorAll("main > section").forEach((s) => s.hidden = s.id !== "t-" + b.dataset.t);
+  ({ generate: loadCoverage, review: loadDrafts, bank: loadBank, analytics: loadAnalytics, syllabus: loadSyllabus })[b.dataset.t]?.();
+});
+
+async function loadOverview() {
+  try { sessionStorage.setItem("proctorToken", $("token").value); } catch (e) {}
+  const g = await api("GET", "/graph");
+  $("title").textContent = g.title;
+  const stat = (n, l) => `<div class="stat"><b>${n}</b><span class="muted">${l}</span></div>`;
+  $("stats").innerHTML = stat(g.sections, "sections") + stat(g.topics, "topics") + stat(g.concepts, "concepts")
+    + stat(g.questions_linked, "questions linked") + stat(g.num_relationships, "graph relations")
+    + stat(g.level0_communities, "GraphRAG communities") + stat(g.concept_relations, "NIM concept relations")
+    + stat(g.llm ? esc(g.llm[0]) : "off", "question generator")
+    + (g.warnings || []).map((w) => `<div class="stat"><span class="pill bad">${esc(w)}</span></div>`).join("");
+  $("blueprint").innerHTML = "<tr><th>Section</th><th>Weight</th><th>Items (of " + g.blueprint.exam_length + ")</th><th>Topics</th></tr>"
+    + g.blueprint.sections.map((s) => `<tr><td><b>${esc(s.name)}</b></td><td>${Math.round(s.weight * 100)}%</td>
+      <td>${(s.weight * g.blueprint.exam_length).toFixed(1)}</td><td class="small">${s.topics.map(esc).join(" · ")}</td></tr>`).join("");
+  const d = await api("GET", "/questions?status=draft");
+  $("ndraft").textContent = d.length;
+}
+
+async function loadCoverage() {
+  const cov = await api("GET", "/coverage");
+  $("coverage").innerHTML = "<tr><th>Section / topic</th><th>Approved</th><th>Untested concepts</th><th></th></tr>" + cov.map((r) =>
+    `<tr><td>${esc(r.section)} / <b>${esc(r.topic)}</b></td><td>${r.approved_questions}${r.need ? ` <span class="pill warn">needs ${r.need}</span>` : ""}</td>
+     <td class="small">${r.untested_concepts.slice(0, 6).map(esc).join(", ") || "–"}</td>
+     <td><button data-topic="${esc(r.topic)}">Generate</button></td></tr>`).join("");
+  $("coverage").querySelectorAll("button[data-topic]").forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = "Generating…";
+    try {
+      const rep = await api("POST", "/generate", { topic: b.dataset.topic, per_topic: +$("per").value });
+      $("log").textContent = rep.reports.map((r) => r.error ? `${r.topic}: ${r.error}` :
+        `${r.topic}: ${r.accepted.length} accepted as drafts, ${r.rejected.length} rejected\n` +
+        r.rejected.map((x) => `  ✗ ${x.reason} — ${x.text}`).join("\n")).join("\n");
+      loadOverview();
+    } catch (e) { $("log").textContent = e.message; }
+    b.disabled = false; b.textContent = "Generate";
+  });
+}
+
+function questionCard(q, actions) {
+  const div = document.createElement("div");
+  div.className = "card";
+  div.innerHTML = `<div class="row"><b>${esc(q.id)}</b><span class="pill">${esc(q.section)}</span><span class="small">${esc(q.topic_name)}</span>
+      <span class="small muted">concepts: ${(q.concepts || []).map(esc).join(", ")}</span>
+      <span class="small muted">difficulty ${esc(q.difficulty || "")} (b=${esc(q.b)})</span>
+      ${q.generator_model ? `<span class="small muted">by ${esc(q.generator_model)}${q.verified ? " · verified" : ""}</span>` : ""}</div>
+    <div style="margin-top:6px">${esc(q.text)}</div>
+    <ol class="opts" start="0">${q.options.map((o, i) => `<li class="${i === q.correct_index ? "key" : ""}">${esc(o)}</li>`).join("")}</ol>
+    ${q.source_quote ? `<div class="quote">Source: “${esc(q.source_quote)}”</div>` : ""}
+    ${q.explanation ? `<div class="small muted">${esc(q.explanation)}</div>` : ""}
+    <div class="row" style="margin-top:8px">${actions}</div>`;
+  return div;
+}
+
+async function loadDrafts() {
+  const d = await api("GET", "/questions?status=draft");
+  const box = $("drafts"); box.innerHTML = d.length ? "" : "<div class='card muted'>No drafts. Generate questions first.</div>";
+  d.forEach((q) => {
+    const c = questionCard(q, `<button class="primary" data-d="approve">Approve</button><button data-d="reject">Reject</button>`);
+    c.querySelectorAll("button[data-d]").forEach((b) => b.onclick = async () => {
+      await api("POST", `/questions/${q.id}/review`, { decision: b.dataset.d }); c.remove(); loadOverview();
+    });
+    box.append(c);
+  });
+}
+
+async function loadBank() {
+  const all = await api("GET", "/questions");
+  const counts = all.reduce((m, q) => (m[q.status] = (m[q.status] || 0) + 1, m), {});
+  $("bank").innerHTML = `<tr><th colspan="6" class="muted">${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(" · ")}</th></tr>
+    <tr><th>ID</th><th>Status</th><th>Section / topic</th><th>Concepts</th><th>b</th><th>Question</th></tr>` +
+    all.map((q) => `<tr><td>${esc(q.id)}</td><td><span class="pill ${q.status === "approved" ? "ok" : q.status === "draft" ? "warn" : "bad"}">${esc(q.status)}</span></td>
+      <td class="small">${esc(q.section)} / ${esc(q.topic_name)}</td><td class="small">${(q.concepts || []).map(esc).join(", ")}</td>
+      <td>${esc(q.b)}${q.calibrated_n ? "*" : ""}</td><td class="small">${esc(q.text).slice(0, 110)}</td></tr>`).join("");
+}
+
+async function loadAnalytics() {
+  const a = await api("GET", "/analytics");
+  $("anmeta").textContent = `${a.responses} answers from ${a.sessions} finished exams · ${a.calibration_ready} items ready for calibration`;
+  $("items").innerHTML = "<tr><th>Item</th><th>Topic</th><th>n</th><th>p</th><th>expected</th><th>r<sub>pb</sub></th><th>sec</th><th>b → calibrated</th><th>Flags</th></tr>" +
+    (a.items.length ? a.items.map((r) => `<tr><td>${esc(r.id)}</td><td class="small">${esc(r.topic)}</td><td>${esc(r.n)}</td><td>${esc(r.p_value)}</td>
+      <td>${esc(r.expected_p ?? "–")}</td><td>${esc(r.point_biserial ?? "–")}</td><td>${esc(r.mean_seconds ?? "–")}</td><td>${esc(r.b)}${r.b_calibrated != null ? " → " + esc(r.b_calibrated) : ""}</td>
+      <td>${r.flags.map((f) => `<span class="pill ${f.includes("leak") ? "bad" : "warn"}">${esc(f)}</span>`).join(" ")}</td></tr>`).join("")
+      : "<tr><td colspan=9 class='muted'>No answers yet.</td></tr>");
+}
+$("calibrate").onclick = async () => { const r = await api("POST", "/analytics/calibrate"); alert(`Updated ${r.updated} item difficulties`); loadAnalytics(); };
+
+async function loadSyllabus() { $("md").value = (await api("GET", "/syllabus")).markdown; }
+$("savesyl").onclick = async () => {
+  try { const st = await api("PUT", "/syllabus", { markdown: $("md").value });
+    alert(`Re-indexed: ${st.sections} sections, ${st.topics} topics, ${st.concepts} concepts`); loadOverview(); }
+  catch (e) { alert(e.message); }
+};
+$("doc").onchange = async () => {
+  const f = $("doc").files[0]; if (!f) return;
+  const fd = new FormData(); fd.append("file", f);
+  $("md").value = "Converting with NVIDIA NIM…";
+  const r = await fetch("/exam/admin/syllabus/convert", { method: "POST", headers: hdr(false), body: fd });
+  const j = await r.json();
+  $("md").value = r.ok ? j.markdown : (j.detail || "conversion failed");
+};
+$("relations").onclick = async () => {
+  $("relinfo").textContent = "extracting…";
+  try { const r = await api("POST", "/graph/relations"); $("relinfo").textContent = `${r.concept_relations} relations added`; }
+  catch (e) { $("relinfo").textContent = e.message; }
+};
+$("askbtn").onclick = async () => {
+  const a = await api("POST", "/ask", { question: $("q").value });
+  $("method").textContent = a.method + (a.matched_entity ? " · matched: " + a.matched_entity : "");
+  $("answer").textContent = a.answer;
+};
+$("q").onkeydown = (e) => { if (e.key === "Enter") $("askbtn").click(); };
+$("load").onclick = () => loadOverview().catch((e) => alert(e.message));
+</script>
+</body>
+</html>

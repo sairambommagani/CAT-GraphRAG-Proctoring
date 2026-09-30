@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proctoring Review</title>
+<style>
+  :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --accent:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 1180px; margin: 24px auto; padding: 0 16px; }
+  header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  h1 { margin: 0 12px 0 0; font-size: 22px; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  input, textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card, .item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .pill { padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; background: #e2e8f0; white-space: nowrap; }
+  .fraud { background: #fee2e2; color: #991b1b; } .suspicious { background: #fef3c7; color: #92400e; }
+  .benign { background: #dcfce7; color: #166534; } .rule { background: #e0e7ff; color: #3730a3; }
+  .frames { display: flex; gap: 6px; overflow-x: auto; margin: 10px 0; }
+  .frames img { height: 110px; border-radius: 6px; }
+  .muted { color: var(--muted); } .small { font-size: 12px; }
+  details { margin-top: 8px; } summary { cursor: pointer; color: var(--muted); }
+  .quote { background: #f1f5f9; border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 4px; margin: 8px 0; }
+  audio { width: 100%; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .ok { color: #166534; } .down { color: #991b1b; }
+  #answer { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Proctoring review</h1>
+    <input id="token" type="password" placeholder="Admin token">
+    <input id="sid" placeholder="Session id (optional)">
+    <button class="primary" id="load">Load</button>
+    <button id="purge">Run retention purge</button>
+    <a href="exam-admin.html" class="small">Exam content (GraphRAG) →</a>
+  </header>
+  <div class="grid">
+    <section>
+      <div id="list"><p class="muted">Enter the admin token and press Load.</p></div>
+    </section>
+    <aside>
+      <div class="card">
+        <h2>AI judge models</h2>
+        <div id="models" class="small muted">–</div>
+        <div id="usage" class="small muted" style="margin-top:6px"></div>
+      </div>
+      <div class="card">
+        <h2>Ask the knowledge graph</h2>
+        <div class="small muted" id="kgstats">GraphRAG over exam rules and past incidents</div>
+        <textarea id="q" rows="2" style="width:100%;margin-top:8px" placeholder="e.g. Which sessions had repeated phone use?  What does R-10 say?"></textarea>
+        <div class="row" style="margin-top:6px"><button class="primary" id="ask">Ask</button><span class="small muted" id="method"></span></div>
+        <div id="answer" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <h2>Exam rules</h2>
+        <div id="rules" class="small">–</div>
+      </div>
+    </aside>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+try { $("token").value = sessionStorage.getItem("proctorToken") || ""; } catch (e) {}
+const hdr = () => ({ "X-Admin-Token": $("token").value, "Content-Type": "application/json" });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (ts) => ts ? new Date(ts * 1000).toLocaleString() : "–";
+
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: hdr(), body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.headers.get("content-type")?.includes("json") ? r.json() : r.blob();
+}
+
+async function loadSide() {
+  const u = await api("GET", "/proctor/admin/usage");
+  $("usage").textContent = `today ${u.calls}/${u.call_budget} calls · ${u.tokens.toLocaleString()} tokens`;
+  $("models").innerHTML = (u.models || []).map((m, i) =>
+    `<div>${i + 1}. <b>${esc(m.model)}</b> <span class="${m.available ? "ok" : "down"}">${m.available ? "●" : "○ benched"}</span><br>
+     <span>${esc(m.role)}${m.input ? " · input: " + esc(m.input) : ""}${m.last_error ? " · " + esc(m.last_error) : ""}</span></div>`).join("") || esc(u.model);
+  try {
+    const st = await api("GET", "/proctor/admin/knowledge/stats");
+    $("kgstats").textContent = `${st.num_entities} entities · ${st.num_relationships} relations · ${st.level0_communities} communities · ${st.rules} rules · ${st.incidents} incidents (${st.reviewed_incidents} reviewed)`;
+    const rules = await api("GET", "/proctor/admin/knowledge/rules");
+    $("rules").innerHTML = rules.map((r) => `<details><summary><b>${esc(r.id)}</b> ${esc(r.title)} <span class="pill">${esc(r.severity)}</span></summary>
+      <div>${esc(r.text)}</div><div class="muted">Applies to: ${esc(r.applies_to.join(", "))}</div>
+      ${r.allowed.length ? `<div class="muted">Allowed: ${esc(r.allowed.join("; "))}</div>` : ""}</details>`).join("");
+  } catch (e) { $("kgstats").textContent = "knowledge graph unavailable"; }
+}
+
+function evidenceCard(m) {
+  const v = m.verdict || {};
+  const div = document.createElement("div");
+  div.className = "item";
+  const tx = m.transcript && m.transcript.text;
+  const lip = m.event.details && m.event.details.lip_sync;
+  const conf = v.confidence != null ? Math.round(v.confidence * 100) + "%" : "";
+  div.innerHTML = `
+    <div class="row">
+      <b>${esc(m.event.type)}${m.event.direction ? " · " + esc(m.event.direction) : ""}</b>
+      <span class="pill ${esc(v.verdict)}">${esc(v.verdict || "pending")} ${conf}</span>
+      ${v.rule ? `<span class="pill rule">${esc(v.rule)}</span>` : ""}
+      <span class="muted small">session ${esc(m.session_id.slice(0, 8))} · ${fmt(m.created_at)}</span>
+    </div>
+    <div class="muted small">${esc((m.timeline || []).join(" · "))}</div>
+    <div style="margin-top:6px">${esc(v.reason || "")} ${(v.observations || []).map((o) => "<br>• " + esc(o)).join("")}</div>
+    ${lip ? `<div class="small muted">Lip-sync: ${esc(lip)}</div>` : ""}
+    ${tx ? `<div class="quote">“${esc(tx)}”${m.transcript.language ? ` <span class="muted small">(${esc(m.transcript.language)})</span>` : ""}</div>` : ""}
+    <div class="small muted">Judge: ${esc(v.model || "–")}${v.input_mode ? " · " + esc(v.input_mode) : ""}${v.latency_s ? " · " + v.latency_s + " s" : ""}
+      ${(v.fallback_from || []).length ? " · fell back from " + esc(v.fallback_from.join(", ")) : ""}
+      · evidence ${m.frames_deleted ? "deleted" : "expires " + fmt(m.frames_expire_at)}</div>
+    ${v.reasoning ? `<details><summary>AI reasoning</summary><div class="small">${esc(v.reasoning)}</div></details>` : ""}
+    <div class="frames"></div>
+    <div class="audio"></div>
+    <div class="row" style="margin-top:8px">
+      ${m.review ? `<span class="pill">reviewed: ${esc(m.review.decision)}</span>` : `
+      <button data-d="confirm" class="primary">Confirm malpractice</button>
+      <button data-d="dismiss">Dismiss (delete evidence)</button>`}
+    </div>`;
+  if (!m.frames_deleted) {
+    const strip = div.querySelector(".frames");
+    for (let i = 0; i < m.n_frames; i++) {
+      const img = new Image();                     // placeholder keeps frames in time order
+      img.title = `t=${m.rel_times[i]}s`; img.alt = img.title;
+      strip.append(img);
+      api("GET", `/proctor/admin/evidence/${m.evidence_id}/frames/${i}.jpg`)
+        .then((b) => { img.src = URL.createObjectURL(b); }).catch(() => img.remove());
+    }
+    if (m.has_audio) {
+      const btn = document.createElement("button");
+      btn.textContent = "▶ Load audio of this clip";
+      btn.onclick = async () => {
+        const b = await api("GET", `/proctor/admin/evidence/${m.evidence_id}/audio.wav`);
+        const a = document.createElement("audio");
+        a.controls = true; a.src = URL.createObjectURL(b);
+        btn.replaceWith(a); a.play();
+      };
+      div.querySelector(".audio").append(btn);
+    }
+  }
+  div.querySelectorAll("button[data-d]").forEach((b) => b.onclick = async () => {
+    await api("POST", `/proctor/admin/evidence/${m.evidence_id}/review`, { decision: b.dataset.d });
+    load();
+  });
+  return div;
+}
+
+async function load() {
+  try { sessionStorage.setItem("proctorToken", $("token").value); } catch (e) {}
+  const sid = $("sid").value.trim();
+  const items = await api("GET", "/proctor/admin/evidence" + (sid ? `?session_id=${encodeURIComponent(sid)}` : ""));
+  const list = $("list");
+  list.innerHTML = items.length ? "" : "<p class='muted'>No flagged evidence.</p>";
+  for (const m of items.reverse()) list.append(evidenceCard(m));
+  loadSide().catch(() => {});
+}
+
+async function ask() {
+  const q = $("q").value.trim();
+  if (!q) return;
+  $("answer").textContent = "…";
+  const a = await api("POST", "/proctor/admin/knowledge/ask", { question: q });
+  $("method").textContent = a.method + (a.matched_entity ? " · matched: " + a.matched_entity : "");
+  $("answer").textContent = a.answer;
+}
+
+$("load").onclick = () => load().catch((e) => alert(e.message));
+$("ask").onclick = () => ask().catch((e) => { $("answer").textContent = e.message; });
+$("q").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("ask").click(); } };
+$("purge").onclick = async () => { alert(JSON.stringify(await api("POST", "/proctor/admin/purge"))); load(); };
+</script>
+</body>
+</html>

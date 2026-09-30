@@ -1,0 +1,14 @@
+services:
+  cat-proctoring:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: backend/.env          # NVIDIA key, evidence key, admin token (never baked into the image)
+    volumes:
+      - models:/srv/backend/models   # downloaded once: MediaPipe + Whisper models
+      - data:/srv/backend/data       # encrypted evidence, audit log, knowledge graph incidents
+    restart: unless-stopped
+
+volumes:
+  models:
+  data:

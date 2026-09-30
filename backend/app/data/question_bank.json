@@ -1,0 +1,702 @@
+[
+  {
+    "id": "q001",
+    "topic": "Python Basics",
+    "text": "What does the following print? print(type(5 / 2))",
+    "options": [
+      "<class 'int'>",
+      "<class 'float'>",
+      "<class 'double'>",
+      "SyntaxError"
+    ],
+    "correct_index": 1,
+    "b": -1.8,
+    "a": 1.0
+  },
+  {
+    "id": "q002",
+    "topic": "Python Basics",
+    "text": "Which keyword is used to define a function in Python?",
+    "options": [
+      "func",
+      "def",
+      "function",
+      "lambda"
+    ],
+    "correct_index": 1,
+    "b": -1.4,
+    "a": 1.1
+  },
+  {
+    "id": "q003",
+    "topic": "Python Basics",
+    "text": "What is the output of len('hello')?",
+    "options": [
+      "4",
+      "5",
+      "6",
+      "Error"
+    ],
+    "correct_index": 1,
+    "b": -1.0,
+    "a": 1.3
+  },
+  {
+    "id": "q004",
+    "topic": "Python Basics",
+    "text": "Which of these creates an empty dictionary?",
+    "options": [
+      "{}",
+      "[]",
+      "()",
+      "dict[]"
+    ],
+    "correct_index": 0,
+    "b": -0.6,
+    "a": 1.4
+  },
+  {
+    "id": "q005",
+    "topic": "Python Basics",
+    "text": "What does the `is` operator check in Python?",
+    "options": [
+      "Value equality",
+      "Identity (same object in memory)",
+      "Type compatibility",
+      "Whether a variable is defined"
+    ],
+    "correct_index": 1,
+    "b": -0.2,
+    "a": 1.5
+  },
+  {
+    "id": "q006",
+    "topic": "Python Basics",
+    "text": "What will `[1, 2, 3][1:]` evaluate to?",
+    "options": [
+      "[1, 2]",
+      "[2, 3]",
+      "[1]",
+      "[3]"
+    ],
+    "correct_index": 1,
+    "b": 0.3,
+    "a": 1.6
+  },
+  {
+    "id": "q007",
+    "topic": "Python Basics",
+    "text": "What is the result of `list(zip([1,2,3], ['a','b']))`?",
+    "options": [
+      "[(1,'a'), (2,'b'), (3, None)]",
+      "[(1,'a'), (2,'b')]",
+      "[1, 2, 'a', 'b']",
+      "TypeError"
+    ],
+    "correct_index": 1,
+    "b": 0.7,
+    "a": 1.7
+  },
+  {
+    "id": "q008",
+    "topic": "Python Basics",
+    "text": "Which statement about Python generators is true?",
+    "options": [
+      "They store all values in memory at once",
+      "They can only be iterated once",
+      "They cannot be used inside functions",
+      "They must return a list"
+    ],
+    "correct_index": 1,
+    "b": 1.1,
+    "a": 1.8
+  },
+  {
+    "id": "q009",
+    "topic": "Python Basics",
+    "text": "What does the following return? sorted([3,1,2], key=lambda x: -x)",
+    "options": [
+      "[1, 2, 3]",
+      "[3, 2, 1]",
+      "[-1, -2, -3]",
+      "TypeError"
+    ],
+    "correct_index": 1,
+    "b": 1.6,
+    "a": 1.4
+  },
+  {
+    "id": "q010",
+    "topic": "Python Basics",
+    "text": "What is the output of: `a = [1,2,3]; b = a; b.append(4); print(a)`?",
+    "options": [
+      "[1, 2, 3]",
+      "[1, 2, 3, 4]",
+      "Error",
+      "[4]"
+    ],
+    "correct_index": 1,
+    "b": 2.0,
+    "a": 1.2
+  },
+  {
+    "id": "q011",
+    "topic": "OOP",
+    "text": "Which keyword is used to create a class in Python?",
+    "options": [
+      "object",
+      "class",
+      "struct",
+      "define"
+    ],
+    "correct_index": 1,
+    "b": -1.7,
+    "a": 0.9
+  },
+  {
+    "id": "q012",
+    "topic": "OOP",
+    "text": "What does `self` refer to inside a class method?",
+    "options": [
+      "The class itself",
+      "The current instance of the class",
+      "A global variable",
+      "The parent class"
+    ],
+    "correct_index": 1,
+    "b": -1.3,
+    "a": 1.1
+  },
+  {
+    "id": "q013",
+    "topic": "OOP",
+    "text": "Which special method is called when an object is created?",
+    "options": [
+      "__new__",
+      "__init__",
+      "__create__",
+      "__start__"
+    ],
+    "correct_index": 1,
+    "b": -0.8,
+    "a": 1.3
+  },
+  {
+    "id": "q014",
+    "topic": "OOP",
+    "text": "What is method overriding?",
+    "options": [
+      "Defining multiple methods with the same name in one class",
+      "A subclass redefining a method inherited from its parent class",
+      "Calling a method multiple times",
+      "Deleting a method at runtime"
+    ],
+    "correct_index": 1,
+    "b": -0.3,
+    "a": 1.5
+  },
+  {
+    "id": "q015",
+    "topic": "OOP",
+    "text": "What does Python's `super()` function do?",
+    "options": [
+      "Creates a new subclass",
+      "Gives access to methods of a parent class",
+      "Deletes the parent class",
+      "Makes a method static"
+    ],
+    "correct_index": 1,
+    "b": 0.2,
+    "a": 1.6
+  },
+  {
+    "id": "q016",
+    "topic": "OOP",
+    "text": "Which of these best describes encapsulation?",
+    "options": [
+      "Hiding internal state and requiring interaction through methods",
+      "Allowing a class to inherit from multiple classes",
+      "Converting an object to a string",
+      "Running code only once per class"
+    ],
+    "correct_index": 0,
+    "b": 0.6,
+    "a": 1.7
+  },
+  {
+    "id": "q017",
+    "topic": "OOP",
+    "text": "What is a key difference between `@staticmethod` and `@classmethod`?",
+    "options": [
+      "staticmethod receives no implicit first argument; classmethod receives the class (cls)",
+      "classmethod cannot be called on an instance",
+      "staticmethod can modify class state; classmethod cannot",
+      "There is no difference"
+    ],
+    "correct_index": 0,
+    "b": 1.0,
+    "a": 1.8
+  },
+  {
+    "id": "q018",
+    "topic": "OOP",
+    "text": "What does Python's Method Resolution Order (MRO) determine?",
+    "options": [
+      "The order attributes are printed",
+      "The order base classes are searched for a method in multiple inheritance",
+      "The order methods are defined in a file",
+      "The order a class's instances are garbage collected"
+    ],
+    "correct_index": 1,
+    "b": 1.4,
+    "a": 1.6
+  },
+  {
+    "id": "q019",
+    "topic": "OOP",
+    "text": "What will happen if two parent classes define the same method and a child class calls it via `super()` in a diamond inheritance pattern?",
+    "options": [
+      "Python raises an error immediately",
+      "Python resolves it using C3 linearization (MRO)",
+      "The leftmost parent's method always wins with no linearization",
+      "Both methods execute in an undefined order"
+    ],
+    "correct_index": 1,
+    "b": 1.8,
+    "a": 1.3
+  },
+  {
+    "id": "q020",
+    "topic": "OOP",
+    "text": "What does `__slots__` do when defined on a class?",
+    "options": [
+      "Nothing, it's purely documentation",
+      "Restricts instances to a fixed set of attributes, saving memory by skipping the per-instance __dict__",
+      "Adds thread-safety locks to attribute access",
+      "Makes all attributes class-level rather than instance-level"
+    ],
+    "correct_index": 1,
+    "b": 2.1,
+    "a": 1.0
+  },
+  {
+    "id": "q021",
+    "topic": "Data Structures & Algorithms",
+    "text": "What is the time complexity of accessing an element in a Python list by index?",
+    "options": [
+      "O(1)",
+      "O(n)",
+      "O(log n)",
+      "O(n^2)"
+    ],
+    "correct_index": 0,
+    "b": -1.9,
+    "a": 1.0
+  },
+  {
+    "id": "q022",
+    "topic": "Data Structures & Algorithms",
+    "text": "Which data structure uses FIFO (first-in, first-out) ordering?",
+    "options": [
+      "Stack",
+      "Queue",
+      "Set",
+      "Tree"
+    ],
+    "correct_index": 1,
+    "b": -1.5,
+    "a": 1.1
+  },
+  {
+    "id": "q023",
+    "topic": "Data Structures & Algorithms",
+    "text": "What is the average time complexity of a hash table lookup?",
+    "options": [
+      "O(1)",
+      "O(n)",
+      "O(log n)",
+      "O(n log n)"
+    ],
+    "correct_index": 0,
+    "b": -1.0,
+    "a": 1.3
+  },
+  {
+    "id": "q024",
+    "topic": "Data Structures & Algorithms",
+    "text": "Which sorting algorithm has O(n log n) average time complexity?",
+    "options": [
+      "Bubble sort",
+      "Insertion sort",
+      "Merge sort",
+      "Selection sort"
+    ],
+    "correct_index": 2,
+    "b": -0.5,
+    "a": 1.4
+  },
+  {
+    "id": "q025",
+    "topic": "Data Structures & Algorithms",
+    "text": "What is the worst-case time complexity of quicksort?",
+    "options": [
+      "O(n log n)",
+      "O(n)",
+      "O(n^2)",
+      "O(log n)"
+    ],
+    "correct_index": 2,
+    "b": 0.0,
+    "a": 1.6
+  },
+  {
+    "id": "q026",
+    "topic": "Data Structures & Algorithms",
+    "text": "In a binary search tree, what is the time complexity of search in the worst case (unbalanced)?",
+    "options": [
+      "O(log n)",
+      "O(n)",
+      "O(1)",
+      "O(n log n)"
+    ],
+    "correct_index": 1,
+    "b": 0.5,
+    "a": 1.7
+  },
+  {
+    "id": "q027",
+    "topic": "Data Structures & Algorithms",
+    "text": "Which traversal of a binary tree visits nodes in sorted order for a BST?",
+    "options": [
+      "Pre-order",
+      "In-order",
+      "Post-order",
+      "Level-order"
+    ],
+    "correct_index": 1,
+    "b": 1.0,
+    "a": 1.8
+  },
+  {
+    "id": "q028",
+    "topic": "Data Structures & Algorithms",
+    "text": "What is the primary advantage of a heap over a sorted array for a priority queue?",
+    "options": [
+      "O(1) insertion and O(1) find-min with no maintenance cost",
+      "O(log n) insertion and O(1) find-min, without needing full sorting",
+      "It guarantees O(1) for every operation",
+      "It uses less memory than any other structure"
+    ],
+    "correct_index": 1,
+    "b": 1.4,
+    "a": 1.7
+  },
+  {
+    "id": "q029",
+    "topic": "Data Structures & Algorithms",
+    "text": "What technique does dynamic programming rely on to improve over naive recursion?",
+    "options": [
+      "Randomization",
+      "Overlapping subproblems + memoization/tabulation",
+      "Parallel execution",
+      "Lazy evaluation"
+    ],
+    "correct_index": 1,
+    "b": 1.8,
+    "a": 1.4
+  },
+  {
+    "id": "q030",
+    "topic": "Data Structures & Algorithms",
+    "text": "What is the time complexity of the union-find (disjoint set) operations with path compression and union by rank?",
+    "options": [
+      "O(n)",
+      "O(log n)",
+      "O(1)",
+      "Amortized nearly O(1) \u2014 O(\u03b1(n))"
+    ],
+    "correct_index": 3,
+    "b": 2.2,
+    "a": 1.1
+  },
+  {
+    "id": "q031",
+    "topic": "ML Fundamentals",
+    "text": "What is the main difference between supervised and unsupervised learning?",
+    "options": [
+      "Supervised learning uses labeled data; unsupervised does not",
+      "Supervised learning is always more accurate",
+      "Unsupervised learning requires more compute",
+      "There is no meaningful difference"
+    ],
+    "correct_index": 0,
+    "b": -1.8,
+    "a": 1.0
+  },
+  {
+    "id": "q032",
+    "topic": "ML Fundamentals",
+    "text": "What does 'overfitting' mean?",
+    "options": [
+      "The model performs poorly on both training and test data",
+      "The model fits training data too closely and generalizes poorly to new data",
+      "The model has too few parameters",
+      "The model trains too quickly"
+    ],
+    "correct_index": 1,
+    "b": -1.3,
+    "a": 1.2
+  },
+  {
+    "id": "q033",
+    "topic": "ML Fundamentals",
+    "text": "What is the purpose of a validation set?",
+    "options": [
+      "To train the final model",
+      "To tune hyperparameters and estimate generalization during development",
+      "To replace the test set entirely",
+      "To augment the training data"
+    ],
+    "correct_index": 1,
+    "b": -0.8,
+    "a": 1.4
+  },
+  {
+    "id": "q034",
+    "topic": "ML Fundamentals",
+    "text": "What does gradient descent do?",
+    "options": [
+      "Randomly searches the parameter space",
+      "Iteratively updates parameters in the direction that reduces the loss function",
+      "Removes outliers from training data",
+      "Selects the best model architecture automatically"
+    ],
+    "correct_index": 1,
+    "b": -0.3,
+    "a": 1.5
+  },
+  {
+    "id": "q035",
+    "topic": "ML Fundamentals",
+    "text": "What is regularization primarily used to address?",
+    "options": [
+      "Underfitting",
+      "Overfitting, by penalizing model complexity",
+      "Slow training speed",
+      "Missing data"
+    ],
+    "correct_index": 1,
+    "b": 0.2,
+    "a": 1.6
+  },
+  {
+    "id": "q036",
+    "topic": "ML Fundamentals",
+    "text": "In gradient descent, what does a learning rate that's too high typically cause?",
+    "options": [
+      "Slower but more stable convergence",
+      "The loss to diverge or oscillate instead of converging",
+      "Guaranteed convergence to the global minimum",
+      "No effect on training"
+    ],
+    "correct_index": 1,
+    "b": 0.6,
+    "a": 1.7
+  },
+  {
+    "id": "q037",
+    "topic": "ML Fundamentals",
+    "text": "What is the key idea behind the bias-variance tradeoff?",
+    "options": [
+      "Bias and variance always move in the same direction as model complexity increases",
+      "Reducing model complexity typically increases bias but decreases variance, and vice versa",
+      "Bias only matters for classification, variance only for regression",
+      "The tradeoff disappears with enough training data regardless of model complexity"
+    ],
+    "correct_index": 1,
+    "b": 1.1,
+    "a": 1.8
+  },
+  {
+    "id": "q038",
+    "topic": "ML Fundamentals",
+    "text": "Why does batch normalization help train deep neural networks?",
+    "options": [
+      "It removes the need for an activation function",
+      "It normalizes layer inputs, reducing internal covariate shift and stabilizing/accelerating training",
+      "It guarantees the model won't overfit",
+      "It replaces the need for backpropagation"
+    ],
+    "correct_index": 1,
+    "b": 1.5,
+    "a": 1.6
+  },
+  {
+    "id": "q039",
+    "topic": "ML Fundamentals",
+    "text": "What distinguishes L1 regularization from L2 regularization in its effect on model weights?",
+    "options": [
+      "L1 tends to produce sparse weights (many exactly zero); L2 shrinks weights smoothly toward zero",
+      "L1 and L2 always produce identical solutions",
+      "L2 produces sparse weights; L1 shrinks weights smoothly",
+      "Neither affects the resulting weight values"
+    ],
+    "correct_index": 0,
+    "b": 1.9,
+    "a": 1.3
+  },
+  {
+    "id": "q040",
+    "topic": "ML Fundamentals",
+    "text": "Why is the vanishing gradient problem more severe in deep networks using sigmoid/tanh activations than ReLU?",
+    "options": [
+      "Sigmoid/tanh have no derivative at all",
+      "Their derivatives saturate near 0 or 1 for large |x|, shrinking gradients as they backpropagate through many layers",
+      "ReLU networks cannot be trained with backpropagation",
+      "Sigmoid/tanh activations only work for classification tasks"
+    ],
+    "correct_index": 1,
+    "b": 2.3,
+    "a": 1.0
+  },
+  {
+    "id": "q041",
+    "topic": "Model Evaluation",
+    "text": "What does 'accuracy' measure in classification?",
+    "options": [
+      "The fraction of correct predictions out of all predictions",
+      "The fraction of true positives out of predicted positives",
+      "The fraction of true positives out of actual positives",
+      "The average prediction confidence"
+    ],
+    "correct_index": 0,
+    "b": -1.7,
+    "a": 1.0
+  },
+  {
+    "id": "q042",
+    "topic": "Model Evaluation",
+    "text": "What is precision in a binary classification context?",
+    "options": [
+      "TP / (TP + FN)",
+      "TP / (TP + FP)",
+      "(TP+TN) / Total",
+      "TN / (TN + FP)"
+    ],
+    "correct_index": 1,
+    "b": -1.2,
+    "a": 1.2
+  },
+  {
+    "id": "q043",
+    "topic": "Model Evaluation",
+    "text": "What is recall (sensitivity) in a binary classification context?",
+    "options": [
+      "TP / (TP + FP)",
+      "TP / (TP + FN)",
+      "(TP+TN) / Total",
+      "TN / (TN + FN)"
+    ],
+    "correct_index": 1,
+    "b": -0.7,
+    "a": 1.3
+  },
+  {
+    "id": "q044",
+    "topic": "Model Evaluation",
+    "text": "Why might accuracy be a misleading metric?",
+    "options": [
+      "It is always equal to precision",
+      "On imbalanced datasets, a model can achieve high accuracy by always predicting the majority class",
+      "It cannot be computed for classification tasks",
+      "It requires labeled test data, unlike other metrics"
+    ],
+    "correct_index": 1,
+    "b": -0.2,
+    "a": 1.5
+  },
+  {
+    "id": "q045",
+    "topic": "Model Evaluation",
+    "text": "What does the F1 score represent?",
+    "options": [
+      "The arithmetic mean of precision and recall",
+      "The harmonic mean of precision and recall",
+      "The product of precision and recall",
+      "The accuracy adjusted for class imbalance"
+    ],
+    "correct_index": 1,
+    "b": 0.3,
+    "a": 1.6
+  },
+  {
+    "id": "q046",
+    "topic": "Model Evaluation",
+    "text": "What does the ROC curve plot?",
+    "options": [
+      "Precision vs. recall at different thresholds",
+      "True positive rate vs. false positive rate at different thresholds",
+      "Accuracy vs. training epoch",
+      "Loss vs. learning rate"
+    ],
+    "correct_index": 1,
+    "b": 0.8,
+    "a": 1.7
+  },
+  {
+    "id": "q047",
+    "topic": "Model Evaluation",
+    "text": "What does an AUC (area under the ROC curve) of 0.5 indicate?",
+    "options": [
+      "Perfect classification",
+      "The model performs no better than random guessing",
+      "The model is perfectly calibrated",
+      "The dataset is perfectly balanced"
+    ],
+    "correct_index": 1,
+    "b": 1.2,
+    "a": 1.8
+  },
+  {
+    "id": "q048",
+    "topic": "Model Evaluation",
+    "text": "In k-fold cross-validation, what is the main purpose of averaging performance across folds?",
+    "options": [
+      "To reduce training time",
+      "To get a more robust estimate of generalization performance and reduce variance from a single train/test split",
+      "To increase the size of the training set",
+      "To eliminate the need for a test set entirely"
+    ],
+    "correct_index": 1,
+    "b": 1.6,
+    "a": 1.5
+  },
+  {
+    "id": "q049",
+    "topic": "Model Evaluation",
+    "text": "Why is stratified k-fold cross-validation preferred over plain k-fold for an imbalanced classification dataset?",
+    "options": [
+      "It trains faster than plain k-fold",
+      "It preserves the class distribution in each fold, avoiding folds with too few minority-class examples",
+      "It removes the need for a separate test set",
+      "It automatically balances the classes via oversampling"
+    ],
+    "correct_index": 1,
+    "b": 2.0,
+    "a": 1.2
+  },
+  {
+    "id": "q050",
+    "topic": "Model Evaluation",
+    "text": "What problem does calibration (e.g. Platt scaling, isotonic regression) address that accuracy/F1/AUC do not directly capture?",
+    "options": [
+      "Whether the model's class rankings are correct",
+      "Whether the model's predicted probabilities reflect true likelihoods of the outcome",
+      "Whether the model overfits the training set",
+      "Whether the dataset is imbalanced"
+    ],
+    "correct_index": 1,
+    "b": 2.4,
+    "a": 0.9
+  }
+]

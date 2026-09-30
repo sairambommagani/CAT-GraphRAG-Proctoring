@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAT-GraphRAG-Proctoring — Adaptive Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="proctor/proctor.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="frame">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      CAT-GraphRAG-Proctoring
+    </div>
+    <div class="topbar-meta" id="topbar-meta"></div>
+  </header>
+
+  <main class="stage">
+
+    <!-- ============ INTRO ============ -->
+    <section class="panel intro-panel" id="view-intro">
+      <div class="intro-copy">
+        <p class="eyebrow-free-label" id="cert-title">Adaptive assessment</p>
+        <h1>Every question is chosen for you, one answer at a time.</h1>
+        <p class="lede">
+          15 adaptive questions across all five syllabus sections: Python basics, OOP, data structures
+          &amp; algorithms, ML fundamentals and model evaluation. Each question is picked from the
+          syllabus knowledge graph to match your ability while covering every section of the syllabus.
+        </p>
+        <p class="proctor-note">This assessment is proctored with your webcam and microphone. You'll be asked for consent, then to look at a dot and stay quiet for 3 seconds before the first question.</p>
+        <button class="btn-primary" id="btn-start">Begin assessment</button>
+      </div>
+      <div class="intro-diagram">
+        <svg viewBox="0 0 220 260" width="220" height="260">
+          <line x1="30" y1="20" x2="30" y2="240" stroke="#3A4457" stroke-width="1.5"/>
+          <circle cx="30" cy="200" r="4" fill="#8A93A6"/>
+          <circle cx="30" cy="150" r="4" fill="#8A93A6"/>
+          <circle cx="30" cy="95"  r="6" fill="#E8A33D"/>
+          <circle cx="30" cy="55"  r="4" fill="#8A93A6"/>
+          <text x="46" y="204" fill="#8A93A6" font-size="12" font-family="Inter">too easy</text>
+          <text x="46" y="99"  fill="#EDEAE3" font-size="12" font-family="Inter">right at your ability</text>
+          <text x="46" y="59"  fill="#8A93A6" font-size="12" font-family="Inter">too hard</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- ============ QUESTION ============ -->
+    <section class="panel question-view" id="view-question" hidden>
+      <aside class="gauge-rail">
+        <div class="gauge-label">ability estimate</div>
+        <div class="gauge">
+          <div class="gauge-track">
+            <div class="gauge-fill" id="gauge-fill"></div>
+            <div class="gauge-needle" id="gauge-needle"></div>
+          </div>
+          <div class="gauge-scale">
+            <span>+3</span>
+            <span>0</span>
+            <span>−3</span>
+          </div>
+        </div>
+        <div class="theta-readout">
+          <div class="theta-value" id="theta-value">0.00</div>
+          <div class="theta-se" id="theta-se">± 1.00 SE</div>
+        </div>
+      </aside>
+
+      <div class="question-main">
+        <div class="question-meta">
+          <span class="q-topic" id="q-topic">—</span>
+          <span class="q-count" id="q-count">Question 1 of 10</span>
+        </div>
+        <h2 class="q-text" id="q-text">Loading…</h2>
+        <div class="options" id="options"></div>
+        <button class="btn-primary" id="btn-submit" disabled>Submit answer</button>
+        <div class="feedback" id="feedback" hidden></div>
+      </div>
+    </section>
+
+    <!-- ============ RESULT ============ -->
+    <section class="panel result-view" id="view-result" hidden>
+      <div class="result-headline">
+        <p class="eyebrow-free-label">Assessment complete</p>
+        <h1 id="result-proficiency">—</h1>
+        <p class="result-theta" id="result-theta-line"></p>
+      </div>
+
+      <div class="result-body">
+        <div class="result-summary-card">
+          <div class="summary-row">
+            <span>Questions answered</span>
+            <span id="result-count">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Correct</span>
+            <span id="result-correct">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Final ability (θ)</span>
+            <span id="result-theta-val">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Standard error</span>
+            <span id="result-se">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Exam integrity</span>
+            <span id="result-integrity">—</span>
+          </div>
+        </div>
+
+        <div class="topic-breakdown">
+          <div class="breakdown-title">By section</div>
+          <div id="breakdown-list"></div>
+        </div>
+      </div>
+
+      <button class="btn-secondary" id="btn-restart">Start another attempt</button>
+    </section>
+
+  </main>
+</div>
+
+<script src="proctor/proctor.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
