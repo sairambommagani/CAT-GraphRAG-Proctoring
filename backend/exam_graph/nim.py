@@ -66,6 +66,7 @@ class NIMText:
         self.max_retries = max_retries
         self.down: dict[str, float] = {}
         self.last_model: Optional[str] = None
+        self.last_tokens = 0
         self._discovered = False
 
     @property
@@ -137,7 +138,8 @@ class NIMText:
                 self.down[model] = time.time() + 120
                 errors.append(f"{model}: {type(e).__name__}")
                 continue
-            self.usage.record(int((resp.get("usage") or {}).get("total_tokens", 0)))
+            self.last_tokens = int((resp.get("usage") or {}).get("total_tokens", 0))
+            self.usage.record(self.last_tokens)
             self.last_model = model
             text = resp["choices"][0]["message"].get("content") or ""
             return re.sub(r"<think>.*?(?:</think>|$)", "", text, flags=re.S).strip()

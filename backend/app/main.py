@@ -2,7 +2,10 @@ import os
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel
+
+from app import accounts, attempts
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +19,7 @@ from app.irt.engine import (
 from exam_graph.cat_blueprint import section_results, select_next_balanced
 from exam_graph.service import ExamService, create_exam_router
 from app.schemas import (
+    StartTestRequest,
     StartTestResponse,
     QuestionOut,
     SubmitAnswerRequest,
@@ -74,15 +78,95 @@ def _question_out(question: dict, question_number: int, max_questions: int) -> Q
         options=question["options"],
         question_number=question_number,
         max_questions=max_questions,
+        source="live" if question.get("origin") == "live-generated" else "bank",
+        difficulty=question.get("difficulty"),
     )
 
 
-def _next_question(session, theta: float) -> dict | None:
-    candidates = [q for q in exam.bank.approved() if q["id"] not in session.used_question_ids]
-    return select_next_balanced(theta, candidates, session.administered, exam.syllabus.weights())
+def _weights(session) -> dict:
+    w = {k: v for k, v in exam.syllabus.weights().items() if not session.sections or k in session.sections}
+    total = sum(w.values()) or 1.0
+    return {k: v / total for k, v in w.items()}
 
 
-FROZEN_KEYS = ("id", "section", "topic_name", "concepts", "text", "options", "correct_index", "a", "b")
+def _bank_question(session, theta: float) -> dict | None:
+    candidates = [q for q in exam.bank.approved() if q["id"] not in session.used_question_ids
+                  and (not session.sections or q.get("section") in session.sections)
+                  and (not session.topic or q.get("topic_name") == session.topic)]
+    return select_next_balanced(theta, candidates, session.administered, _weights(session))
+
+
+def _next_question(session, theta: float, correct: bool | None = None) -> dict | None:
+    """Live generation for this candidate (CAT ability + GraphRAG syllabus), bank as fallback."""
+    live = exam.live
+    if live is not None:
+        q = None
+        if correct is None:                                   # first question: generate now
+            plan = live.plan(session, theta, session.sections or [s.name for s in exam.syllabus.sections],
+                             _weights(session))
+            if plan:
+                fut = live.pool.submit(live.generate, plan, [])
+                try:
+                    q = fut.result(timeout=live.first_wait_s)       # don't keep the candidate waiting
+                except Exception:
+                    q = None
+        else:
+            q = live.take(session, correct)
+        if q is not None:
+            return q
+        live.fallback()
+    return _bank_question(session, theta)
+
+
+def _after_serve(session) -> None:
+    if exam.live is not None:
+        exam.live.prefetch(session, session.sections or [s.name for s in exam.syllabus.sections], _weights(session))
+
+
+def _bearer(authorization: str | None) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return None
+
+
+def login_required() -> bool:
+    return os.environ.get("CAT_REQUIRE_LOGIN", "0") == "1"      # accounts are optional (off by default)
+
+
+class _Creds(BaseModel):
+    username: str
+    password: str
+    name: str = ""
+
+
+@app.post("/auth/register")
+def auth_register(body: _Creds):
+    try:
+        return accounts.register(body.username, body.password, body.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/auth/login")
+def auth_login(body: _Creds):
+    try:
+        return accounts.login(body.username, body.password)
+    except PermissionError as e:
+        raise HTTPException(401, str(e))
+
+
+@app.get("/exam-scope")
+def exam_scope():
+    return exam.get_scope()
+
+
+@app.get("/subjects")
+def list_subjects():
+    return [{"key": k, "name": v["name"], "sections": v["sections"]} for k, v in exam.subjects().items()]
+
+
+FROZEN_KEYS = ("id", "section", "topic_name", "concepts", "text", "options", "correct_index", "a", "b",
+               "origin", "difficulty")
 
 
 def _serve(session, question: dict) -> None:
@@ -92,20 +176,41 @@ def _serve(session, question: dict) -> None:
                                 for k in FROZEN_KEYS}
     session.current_question_id = question["id"]
     session.used_question_ids.add(question["id"])
+    session.sources.append("live" if question.get("origin") == "live-generated" else "bank")
     session.served_at = time.time()
 
 
 @app.post("/start-test", response_model=StartTestResponse)
-def start_test():
-    session = create_session(max_questions=exam.syllabus.exam_length)
-    # First question: theta estimate is the prior mean (0); the blueprint picks the section.
-    first = _next_question(session, 0.0)
+def start_test(body: StartTestRequest | None = None, authorization: str | None = Header(None)):
+    user = accounts.user_for(_bearer(authorization))
+    if user is None and login_required():
+        raise HTTPException(401, "Please sign in first")
+    subjects = exam.subjects()
+    scope = exam.get_scope()                                  # set by the examiner on the question-bank page
+    if body and body.subject:
+        if body.subject not in subjects:
+            raise HTTPException(400, f"unknown subject {body.subject!r}")
+        key, secs, topic, label = body.subject, subjects[body.subject]["sections"], None, subjects[body.subject]["name"]
+    else:
+        key, secs, topic, label = scope["subject"], scope["sections"], scope["topic"], scope["name"]
+    length = min(exam.syllabus.exam_length, 5 * len(secs)) if not topic else min(exam.syllabus.exam_length, 5)
+    session = create_session(max_questions=length)
+    session.username = user["username"] if user else None
+    session.subject, session.sections, session.topic = key, list(secs), topic
+    prev = attempts.last(session.username, key)
+    if prev:                                                  # carry performance across attempts
+        session.start_theta = float(prev.get("theta", 0.0))
+        session.prior_weak = list(prev.get("missed_concepts", []))[:10]
+    # First question: aimed at the last ability estimate (prior mean 0 for a first attempt).
+    first = _next_question(session, session.start_theta)
     if first is None:
         raise HTTPException(500, "Question bank is empty")
     _serve(session, first)
+    _after_serve(session)
     return StartTestResponse(
         session_id=session.session_id,
         question=_question_out(first, question_number=1, max_questions=session.max_questions),
+        subject=label, candidate=user["name"] if user else None,
     )
 
 
@@ -145,11 +250,13 @@ def _submit(session, req: SubmitAnswerRequest) -> SubmitAnswerResponse:
     next_out = None
 
     if not finished:
-        nxt = _next_question(session, estimate.theta)
+        sel_theta = estimate_ability(session.responses, session.start_theta).theta   # selection: carries history
+        nxt = _next_question(session, sel_theta, correct)
         if nxt is None:
             finished = True
         else:
             _serve(session, nxt)
+            _after_serve(session)
             next_out = _question_out(
                 nxt,
                 question_number=session.questions_administered + 1,
@@ -161,6 +268,7 @@ def _submit(session, req: SubmitAnswerRequest) -> SubmitAnswerResponse:
         if not session.finished_logged:
             exam.log.finish(session.session_id, estimate.theta)
             session.finished_logged = True
+        _save_attempt(session, estimate)
 
     return SubmitAnswerResponse(
         correct=correct,
@@ -169,6 +277,36 @@ def _submit(session, req: SubmitAnswerRequest) -> SubmitAnswerResponse:
         finished=finished,
         next_question=next_out,
     )
+
+
+def _recommendations(session) -> list[dict]:
+    """Study plan from the syllabus graph: each topic answered wrongly, its missed concepts,
+    and the prerequisite topics to revise first."""
+    out: dict[str, dict] = {}
+    for q, r in zip(session.administered, session.responses):
+        if r.correct:
+            continue
+        t = exam.syllabus.topic(q.get("topic_name") or "")
+        if t is None:
+            continue
+        rec = out.setdefault(t.name, {"topic": t.name, "section": t.section, "concepts": [],
+                                      "prerequisites": list(t.requires)})
+        for c in q.get("concepts") or []:
+            if c not in rec["concepts"]:
+                rec["concepts"].append(c)
+    return list(out.values())[:6]
+
+
+def _save_attempt(session, estimate) -> None:
+    if not session.username or session.attempt_saved or not session.responses:
+        return
+    session.attempt_saved = True
+    missed = [c for q, r in zip(session.administered, session.responses) if not r.correct for c in q.get("concepts") or []]
+    attempts.record(session.username, {
+        "session_id": session.session_id, "subject": session.subject, "theta": round(estimate.theta, 3),
+        "se": round(estimate.se, 3), "correct": sum(r.correct for r in session.responses),
+        "total": len(session.responses), "missed_concepts": list(dict.fromkeys(missed)),
+        "live_questions": session.sources.count("live")})
 
 
 @app.get("/result/{session_id}", response_model=ResultResponse)
@@ -203,8 +341,13 @@ def get_result(session_id: str):
         correct_count=sum(1 for r in session.responses if r.correct),
         topic_breakdown=breakdown,
         integrity=IntegrityReport(**integrity),
-        assessment=exam.syllabus.title,
-        sections=[SectionResult(**s) for s in sections],
+        assessment=(exam.subjects().get(session.subject or "full", {}).get("name") or exam.syllabus.title)
+                   + (f" · {session.topic}" if session.topic else ""),
+        sections=[SectionResult(**s) for s in sections if not session.sections or s["section"] in session.sections],
+        subject=session.subject,
+        recommendations=_recommendations(session),
+        history=[{"theta": h.get("theta"), "correct": h.get("correct"), "total": h.get("total"),
+                  "finished_at": h.get("finished_at")} for h in attempts.history(session.username, session.subject)][-6:],
     )
 
 
@@ -219,7 +362,15 @@ def health():
                            "judge_available": bool(proctoring.judge.available),
                            "microphone": True,
                            "speech_to_text": bool(getattr(proctoring.transcriber, "enabled", False)),
-                           "knowledge_graph": proctoring.knowledge is not None}}
+                           "knowledge_graph": proctoring.knowledge is not None},
+            "semantic_cache": _cache_summary(),
+            "live_questions": exam.live.summary() if exam.live is not None else None,
+            "login_required": login_required()}
+
+
+def _cache_summary():
+    from semantic_cache import shared_cache
+    return shared_cache().summary()
 
 
 # Serve the frontend from the API origin: http://localhost:8000/ui/

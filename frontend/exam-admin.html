@@ -70,7 +70,16 @@
   </section>
 
   <section id="t-review" hidden><div id="drafts"></div></section>
-  <section id="t-bank" hidden><div class="card"><table id="bank"></table></div></section>
+  <section id="t-bank" hidden><div class="card">
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <label class="small">Subject <select id="f-subject"><option value="">All subjects</option></select></label>
+      <label class="small">Section <select id="f-section"><option value="">All sections</option></select></label>
+      <label class="small">Topic <select id="f-topic"><option value="">All topics</option></select></label>
+      <button class="primary" id="use-scope">Use this selection for the exam</button>
+      <span class="small" id="scope-now" style="color:#e8a33d"></span>
+      <label class="small">Status <select id="f-status"><option value="">All</option><option>approved</option><option>live</option><option>draft</option><option>rejected</option></select></label>
+    </div>
+    <table id="bank"></table></div></section>
 
   <section id="t-analytics" hidden>
     <div class="card">
@@ -96,7 +105,7 @@
       <h2>Ask the exam knowledge graph</h2>
       <div class="row"><input id="q" style="flex:1" placeholder="e.g. Which topics do candidates fail most?  What does Deep Network Training require?  Which concepts have no questions?">
         <button class="primary" id="askbtn">Ask</button></div>
-      <p class="small muted" id="method"></p><div id="answer"></div>
+      <p class="small muted" id="method"></p><div id="answer"></div><p class="small" id="cacheinfo" style="color:#e8a33d"></p>
     </div>
   </section>
 </main>
@@ -105,6 +114,12 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 try { $("token").value = sessionStorage.getItem("proctorToken") || ""; } catch (e) {}
 const hdr = (json = true) => Object.assign({ "X-Admin-Token": $("token").value }, json ? { "Content-Type": "application/json" } : {});
+function cacheLine(c) {
+  if (!c) return "";
+  if (c.hit) return `⚡ Semantic cache HIT (${c.backend}) · similarity ${c.similarity} · ~${c.tokens_saved} tokens saved · ${c.seconds}s`
+    + (c.matched_question ? ` · matched earlier question: "${c.matched_question}"` : "");
+  return `LLM answer · ${c.tokens_used || 0} tokens · ${c.seconds}s · ${c.stored ? "saved to " + c.backend + " for similar questions" : "not cached"}`;
+}
 async function api(method, path, body) {
   const r = await fetch("/exam/admin" + path, { method, headers: hdr(), body: body ? JSON.stringify(body) : undefined });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
@@ -179,12 +194,42 @@ async function loadDrafts() {
   });
 }
 
+let bankAll = [], subjectsList = [];
 async function loadBank() {
-  const all = await api("GET", "/questions");
+  bankAll = await api("GET", "/questions");
+  if (!subjectsList.length) {
+    subjectsList = await (await fetch("/subjects")).json();
+    $("f-subject").innerHTML = `<option value="">All subjects</option>` + subjectsList.map((s) => `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join("");
+    ["f-subject", "f-section", "f-topic", "f-status"].forEach((id) => $(id).onchange = () => { if (id === "f-subject") $("f-section").value = ""; if (id !== "f-topic" && id !== "f-status") $("f-topic").value = ""; renderBank(); });
+  }
+  $("use-scope").onclick = () => useScope().catch((e) => alert(e.message));
+  showScope();
+  renderBank();
+}
+async function showScope() {
+  try { const sc = await (await fetch("/exam-scope")).json(); $("scope-now").textContent = "Exam is set to: " + sc.name; } catch (e) {}
+}
+async function useScope() {
+  const sc = await api("POST", "/scope", { subject: $("f-subject").value || "full", section: $("f-section").value || null,
+                                           topic: $("f-topic").value || null });
+  $("scope-now").textContent = "Exam is set to: " + sc.name;
+}
+function renderBank() {
+  const subj = subjectsList.find((s) => s.key === $("f-subject").value);
+  const secs = [...new Set(bankAll.map((q) => q.section).filter(Boolean))].filter((x) => !subj || subj.sections.includes(x));
+  const sec = $("f-section").value;
+  $("f-section").innerHTML = `<option value="">All sections</option>` + secs.map((x) => `<option ${x === sec ? "selected" : ""}>${esc(x)}</option>`).join("");
+  const topics = [...new Set(bankAll.filter((q) => (!sec || q.section === sec) && (!subj || subj.sections.includes(q.section))).map((q) => q.topic_name).filter(Boolean))];
+  const top = $("f-topic").value;
+  $("f-topic").innerHTML = `<option value="">All topics</option>` + topics.map((x) => `<option ${x === top ? "selected" : ""}>${esc(x)}</option>`).join("");
+  const st = $("f-status").value;
+  const all = bankAll.filter((q) => (!subj || subj.sections.includes(q.section)) && (!sec || q.section === sec)
+    && (!$("f-topic").value || q.topic_name === $("f-topic").value) && (!st || q.status === st));
   const counts = all.reduce((m, q) => (m[q.status] = (m[q.status] || 0) + 1, m), {});
-  $("bank").innerHTML = `<tr><th colspan="6" class="muted">${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(" · ")}</th></tr>
+  const pill = (st) => st === "approved" ? "ok" : (st === "draft" || st === "live") ? "warn" : "bad";
+  $("bank").innerHTML = `<tr><th colspan="6" class="muted">${all.length} question(s) · ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(" · ")}</th></tr>
     <tr><th>ID</th><th>Status</th><th>Section / topic</th><th>Concepts</th><th>b</th><th>Question</th></tr>` +
-    all.map((q) => `<tr><td>${esc(q.id)}</td><td><span class="pill ${q.status === "approved" ? "ok" : q.status === "draft" ? "warn" : "bad"}">${esc(q.status)}</span></td>
+    all.map((q) => `<tr><td>${esc(q.id)}</td><td><span class="pill ${pill(q.status)}">${esc(q.status === "live" ? "live (AI, per candidate)" : q.status)}</span></td>
       <td class="small">${esc(q.section)} / ${esc(q.topic_name)}</td><td class="small">${(q.concepts || []).map(esc).join(", ")}</td>
       <td>${esc(q.b)}${q.calibrated_n ? "*" : ""}</td><td class="small">${esc(q.text).slice(0, 110)}</td></tr>`).join("");
 }
@@ -223,6 +268,7 @@ $("askbtn").onclick = async () => {
   const a = await api("POST", "/ask", { question: $("q").value });
   $("method").textContent = a.method + (a.matched_entity ? " · matched: " + a.matched_entity : "");
   $("answer").textContent = a.answer;
+  $("cacheinfo").textContent = cacheLine(a.cache);
 };
 $("q").onkeydown = (e) => { if (e.key === "Enter") $("askbtn").click(); };
 $("load").onclick = () => loadOverview().catch((e) => alert(e.message));

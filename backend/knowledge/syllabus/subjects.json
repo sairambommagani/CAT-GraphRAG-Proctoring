@@ -1,0 +1,4 @@
+{
+  "python": {"name": "Python Programming", "sections": ["Python Basics", "OOP", "Data Structures & Algorithms"]},
+  "ml": {"name": "Machine Learning", "sections": ["ML Fundamentals", "Model Evaluation"]}
+}

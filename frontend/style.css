@@ -431,3 +431,17 @@ body {
 
 /* ---------- section results ---------- */
 .missed { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+
+/* ---- account + subject ---- */
+.account-box { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; max-width: 420px; }
+.account-box input, .account-box select {
+  font: inherit; font-size: 15px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid #3A4457; background: #1B2130; color: #EDEAE3;
+}
+.account-title { margin: 0; color: #EDEAE3; }
+.account-title a { color: #E8A33D; }
+.account-label { font-size: 13px; color: #8A93A6; }
+.account-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.account-msg { margin: 0; font-size: 13px; color: #8A93A6; min-height: 1em; }
+.q-source { margin-left: 8px; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(232, 163, 61, 0.15); color: #E8A33D; }

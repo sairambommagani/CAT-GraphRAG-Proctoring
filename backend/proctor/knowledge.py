@@ -496,8 +496,22 @@ class ProctorKnowledge:
             method = "graph traversal (GraphRAG local search)"
         if self.llm is not None:
             try:
-                answer = self.llm.answer(question, context)
-                method = f"LLM over graph context ({self.llm.model})"
+                import hashlib
+                from semantic_cache import shared_cache
+                # answers are tied to the current rules + incidents; any change (new case, review,
+                # erasure) gives a new version and purges the old cached answers
+                kb = hashlib.sha1(json.dumps(self.stats(), sort_keys=True, default=str).encode()).hexdigest()[:12]
+                llm = self.llm
+
+                def compute():
+                    text = llm.answer(question, context)
+                    return text, int(getattr(llm, "last_tokens", 0) or 0)
+                res = shared_cache().answer(question, "proctor-ask", kb, compute)
+                if res["answer"]:
+                    answer = res["answer"]
+                    method = ("semantic cache (" + res["cache"]["backend"] + ")" if res["cache"]["hit"]
+                              else f"LLM over graph context ({self.llm.model})")
+                context["cache"] = res["cache"]
             except Exception as e:                          # keep the graph answer
                 context["llm_error"] = str(e)[:200]
         return {"question": question, "answer": answer, "method": method, **context}
@@ -557,6 +571,29 @@ class ProctorKnowledge:
         return lines
 
 
+class NIMChainLLM:
+    """Examiner answers through exam_graph.nim.NIMText (Nemotron chain, catalogue discovery)."""
+
+    def __init__(self):
+        from exam_graph.nim import NIMText
+        self.text = NIMText()
+        self.last_tokens = 0
+
+    @property
+    def model(self) -> str:
+        return self.text.last_model or self.text.models[0]
+
+    def answer(self, question: str, context: dict) -> str:
+        ctx = json.dumps({k: context[k] for k in ("facts", "rules", "neighbors", "communities") if context.get(k)},
+                         default=str)[:6000]
+        out = self.text.chat("You answer an exam examiner's question using ONLY the knowledge-graph context given "
+                             "(proctoring rules and incident records). Cite rule ids and session ids. If the context "
+                             "doesn't contain the answer, say so. Max 5 sentences.",
+                             f"Question: {question}\nContext: {ctx}", max_tokens=400)
+        self.last_tokens = self.text.last_tokens
+        return out
+
+
 class NIMTextLLM:
     """Optional: phrase examiner answers from the retrieved graph context with a small
     NVIDIA NIM text model (PROCTOR_KG_LLM, e.g. meta/llama-3.1-8b-instruct). The
@@ -568,11 +605,13 @@ class NIMTextLLM:
         self.client = client or httpx.Client(timeout=30)
 
     @classmethod
-    def from_env(cls) -> Optional["NIMTextLLM"]:
+    def from_env(cls):
         model = os.environ.get("PROCTOR_KG_LLM", "").strip()
         key = os.environ.get("NVIDIA_API_KEY") or os.environ.get("NIM_API_KEY")
-        if not model or not key:
+        if not key or key.startswith("nvapi-xxx") or os.environ.get("PROCTOR_KG_LLM_OFF") == "1":
             return None
+        if not model:                    # default: the same NVIDIA text model chain as the exam graph
+            return NIMChainLLM()
         return cls(model, key, os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"))
 
     def answer(self, question: str, context: dict) -> str:

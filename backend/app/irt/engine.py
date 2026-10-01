@@ -69,20 +69,21 @@ class AbilityEstimate:
     se: float  # posterior standard deviation, used as standard error
 
 
-def estimate_ability(responses: list[Response]) -> AbilityEstimate:
+def estimate_ability(responses: list[Response], prior_mean: float = PRIOR_MEAN) -> AbilityEstimate:
     """
     EAP ability estimate given all responses so far.
-    With zero responses, returns the prior (theta=0, se=1).
+    With zero responses, returns the prior (theta=prior_mean, se=1). `prior_mean` lets item
+    SELECTION start from a returning candidate's last estimate; reported scores use 0.
     """
     if not responses:
-        return AbilityEstimate(theta=PRIOR_MEAN, se=PRIOR_SD)
+        return AbilityEstimate(theta=prior_mean, se=PRIOR_SD)
 
     weighted_sum = 0.0
     total_weight = 0.0
     weighted_sq_sum = 0.0
 
     for theta in _THETA_GRID:
-        prior = _normal_pdf(theta, PRIOR_MEAN, PRIOR_SD)
+        prior = _normal_pdf(theta, prior_mean, PRIOR_SD)
         likelihood = 1.0
         for r in responses:
             p = p_correct(theta, r.a, r.b)
@@ -94,7 +95,7 @@ def estimate_ability(responses: list[Response]) -> AbilityEstimate:
 
     if total_weight == 0:
         # numerical underflow guard: fall back to prior
-        return AbilityEstimate(theta=PRIOR_MEAN, se=PRIOR_SD)
+        return AbilityEstimate(theta=prior_mean, se=PRIOR_SD)
 
     mean = weighted_sum / total_weight
     variance = max(weighted_sq_sum / total_weight - mean ** 2, 1e-6)

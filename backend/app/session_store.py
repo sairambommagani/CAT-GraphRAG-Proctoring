@@ -26,6 +26,15 @@ class TestSession:
     current_question: dict | None = None                     # frozen copy of the question on screen
     served_at: float | None = None
     finished_logged: bool = False
+    username: str | None = None
+    subject: str | None = None                               # subject key (see /subjects)
+    sections: list[str] = field(default_factory=list)       # syllabus sections of that subject
+    topic: str | None = None                                 # examiner narrowed the exam to one topic
+    prefetched: dict = field(default_factory=dict, repr=False)   # live generation: outcome -> Future
+    sources: list[str] = field(default_factory=list)
+    start_theta: float = 0.0                                # from the candidate's last attempt
+    prior_weak: list[str] = field(default_factory=list)     # concepts missed in the last attempt
+    attempt_saved: bool = False        # "live" / "bank" per question served
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @property

@@ -33,6 +33,9 @@ class ExamService:
         self.bank = QuestionBank(self.data_dir / "question_bank.json", self.graph, **kw)
         self.log = ResponseLog(self.data_dir / "responses.jsonl")
         self.generator = QuestionGenerator(llm, self.graph, self.bank) if llm is not None else None
+        from .live import LiveQuestionService
+        self.live = (LiveQuestionService(llm, self.graph, self.bank)
+                     if llm is not None and os.environ.get("CAT_LIVE_QUESTIONS", "1") == "1" else None)
         self.refresh_analytics()
 
     @classmethod
@@ -53,10 +56,96 @@ class ExamService:
             self.bank.retag()
         return self.graph.stats()
 
+    def subjects(self) -> dict:
+        """Subjects a candidate can choose (knowledge/syllabus/subjects.json), restricted to
+        sections that exist in the current syllabus, plus the full assessment."""
+        import json as _json
+        names = [x.name for x in self.syllabus.sections]
+        out = {}
+        try:
+            raw = _json.loads((Path(__file__).resolve().parent.parent / "knowledge" / "syllabus" / "subjects.json")
+                              .read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = {}
+        for key, v in raw.items():
+            secs = [x for x in v.get("sections", []) if x in names]
+            if secs:
+                out[key] = {"name": v.get("name", key), "sections": secs}
+        if not out:
+            out = {f"s{i}": {"name": n, "sections": [n]} for i, n in enumerate(names)}
+        out["full"] = {"name": self.syllabus.title, "sections": names}
+        return out
+
+    # ---- exam scope chosen by the examiner (question bank page) ------------------------------
+    def get_scope(self) -> dict:
+        import json as _json
+        try:
+            sc = _json.loads((self.data_dir / "exam_scope.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            sc = {}
+        subs = self.subjects()
+        key = sc.get("subject") if sc.get("subject") in subs else "full"
+        sections = list(subs[key]["sections"])
+        section = sc.get("section") if sc.get("section") in sections else None
+        topic = sc.get("topic") if section and self.syllabus.topic(sc.get("topic") or "") \
+            and self.syllabus.topic(sc["topic"]).section == section else None
+        name = subs[key]["name"] + (f" · {section}" if section else "") + (f" · {topic}" if topic else "")
+        return {"subject": key, "section": section, "topic": topic, "name": name,
+                "sections": [section] if section else sections}
+
+    def set_scope(self, subject: str, section: Optional[str], topic: Optional[str]) -> dict:
+        import json as _json
+        if subject and subject not in self.subjects():
+            raise ValueError(f"unknown subject {subject!r}")
+        (self.data_dir / "exam_scope.json").write_text(_json.dumps({"subject": subject or "full", "section": section or None,
+                                                               "topic": topic or None}), encoding="utf-8")
+        return self.get_scope()
+
+    def ask(self, question: str) -> dict:
+        """Examiner question: GraphRAG retrieval over the exam graph, then (when NVIDIA NIM is
+        available) an LLM answer over that context, served through the semantic cache."""
+        out = self.graph.ask(question)
+        if self.llm is None:
+            return out
+        import hashlib
+        import json as _json
+        from semantic_cache import shared_cache
+        kb = hashlib.sha1(_json.dumps([self.graph.stats(), self.graph.performance],
+                                      sort_keys=True, default=str).encode()).hexdigest()[:12]
+        ctx = _json.dumps({"graph_answer": out["answer"], "matched": out.get("matched_entity"),
+                           "neighbors": out.get("neighbors", [])[:10],
+                           "communities": out.get("communities", [])}, default=str)[:6000]
+
+        def compute():
+            text = self.llm.chat(
+                "You answer an examiner's question about an exam syllabus, its question bank and candidate "
+                "performance, using ONLY the knowledge-graph context given. Be specific (section, topic, concept "
+                "names, numbers). If the context doesn't contain the answer, say so. Max 5 sentences.",
+                f"Question: {question}\nKnowledge-graph context: {ctx}", max_tokens=400)
+            return text, int(getattr(self.llm, "last_tokens", 0) or 0)
+        try:
+            res = shared_cache().answer(question, "exam-ask", kb, compute)
+        except Exception as e:                                # LLM down: keep the graph answer
+            out["llm_error"] = str(e)[:200]
+            return out
+        if res["answer"]:
+            out["graph_answer"] = out["answer"]
+            out["answer"] = res["answer"]
+            out["method"] = ("semantic cache (" + res["cache"]["backend"] + ")" if res["cache"]["hit"]
+                             else f"LLM over GraphRAG context ({self.llm.last_model})")
+        out["cache"] = res["cache"]
+        return out
+
     def refresh_analytics(self) -> dict:
         st = item_stats(self.log, self.bank)
         self.graph.performance = st["performance"]
         return st
+
+
+class ScopeBody(BaseModel):
+    subject: str = "full"
+    section: Optional[str] = None
+    topic: Optional[str] = None
 
 
 class ReviewBody(BaseModel):
@@ -185,6 +274,18 @@ def create_exam_router(svc: ExamService, admin_token: Optional[str]) -> APIRoute
         if not body.question.strip():
             raise HTTPException(400, "empty question")
         svc.refresh_analytics()
-        return svc.graph.ask(body.question[:500])
+        return svc.ask(body.question[:500])
+
+    @r.post("/scope")
+    def set_scope(body: ScopeBody, who: str = Depends(admin)):
+        try:
+            return svc.set_scope(body.subject, body.section, body.topic)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @r.get("/cache")
+    def cache_stats(who: str = Depends(admin)):
+        from semantic_cache import shared_cache
+        return shared_cache().summary()
 
     return r

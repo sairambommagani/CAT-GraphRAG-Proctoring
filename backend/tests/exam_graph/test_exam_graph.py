@@ -287,12 +287,13 @@ def test_convert_uploaded_document_to_syllabus_draft(svc):
 def test_examiner_questions_over_the_graph(svc):
     c, h = _client(svc)
     a = c.post("/exam/admin/ask", json={"question": "What does Deep Network Training require?"}, headers=h).json()
-    assert "Optimization" in a["answer"] and a["method"].startswith("graph traversal")
+    g = lambda a: a.get("graph_answer", a["answer"])          # retrieval result (before the LLM/cache)
+    assert "Optimization" in g(a)
     a = c.post("/exam/admin/ask", json={"question": "Which concepts have no questions yet? coverage"},
                headers=h).json()
-    assert "untested concepts" in a["answer"]
+    assert "untested concepts" in g(a)
     a = c.post("/exam/admin/ask", json={"question": "tell me about l1 regularization"}, headers=h).json()
-    assert "q039" in a["answer"]
+    assert "q039" in g(a)
 
 
 # ---- analytics + calibration -----------------------------------------------------------------------------

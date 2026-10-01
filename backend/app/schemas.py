@@ -8,11 +8,19 @@ class QuestionOut(BaseModel):
     options: list[str]
     question_number: int
     max_questions: int
+    source: str | None = None          # "live" (generated for this candidate) or "bank"
+    difficulty: str | None = None
+
+
+class StartTestRequest(BaseModel):
+    subject: str | None = None
 
 
 class StartTestResponse(BaseModel):
     session_id: str
     question: QuestionOut
+    subject: str | None = None
+    candidate: str | None = None
 
 
 class SubmitAnswerRequest(BaseModel):
@@ -65,3 +73,6 @@ class ResultResponse(BaseModel):
     integrity: IntegrityReport | None = None
     assessment: str | None = None
     sections: list[SectionResult] = []
+    subject: str | None = None
+    recommendations: list[dict] = []      # study next: missed topics/concepts + prerequisites (syllabus graph)
+    history: list[dict] = []              # this candidate's attempts on this subject (progress)

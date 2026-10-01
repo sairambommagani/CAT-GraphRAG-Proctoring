@@ -20,6 +20,15 @@ const viewResult = el("view-result");
 el("topbar-meta").textContent = "Adaptive assessment";
 
 el("btn-start").addEventListener("click", startTest);
+// ---- account + subject ------------------------------------------------------------
+let authInfo = null;
+async function showAccount() {
+  try {
+    const sc = await (await fetch(`${API_BASE}/exam-scope`)).json();     // chosen by the examiner
+    el("scope-name").textContent = sc.name;
+  } catch (e) { el("scope-name").textContent = "Adaptive assessment"; }
+}
+showAccount();
 el("btn-submit").addEventListener("click", submitAnswer);
 el("btn-restart").addEventListener("click", () => location.reload());
 
@@ -27,10 +36,16 @@ async function startTest() {
   el("btn-start").disabled = true;
   el("btn-start").textContent = "Starting…";
   try {
-    const res = await fetch(`${API_BASE}/start-test`, { method: "POST" });
+    el("btn-start").textContent = "Preparing your first question…";
+    const res = await fetch(`${API_BASE}/start-test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
     if (!res.ok) throw new Error(`start-test failed: ${res.status}`);
     const data = await res.json();
     sessionId = data.session_id;
+    el("topbar-meta").textContent = data.subject || "Adaptive assessment";
 
     // Webcam + mic proctoring: consent -> camera/mic -> 3 s calibration, before the first question is shown.
     el("btn-start").textContent = "Setting up proctoring…";
@@ -67,6 +82,12 @@ function showQuestion(q) {
   answered = false;
 
   el("q-topic").textContent = q.topic;
+  if (q.source === "live") {
+    const tag = document.createElement("span");
+    tag.className = "q-source";
+    tag.textContent = `AI-generated for you · ${q.difficulty || "medium"}`;
+    el("q-topic").appendChild(tag);
+  }
   el("q-count").textContent = `Question ${q.question_number} of ${q.max_questions}`;
   el("q-text").textContent = q.text;
 
@@ -97,6 +118,7 @@ async function submitAnswer() {
   if (selectedIndex === null || answered) return;
   answered = true;
   el("btn-submit").disabled = true;
+  el("btn-submit").textContent = "Preparing your next question…";
 
   try {
     const res = await fetch(`${API_BASE}/submit-answer`, {
@@ -181,6 +203,18 @@ function renderResult(data) {
   el("result-se").textContent = `± ${data.se.toFixed(2)}`;
 
   renderIntegrity(data.integrity);
+
+  const recs = data.recommendations || [];
+  el("study-box").hidden = !recs.length;
+  el("study-list").innerHTML = recs.map((r) => `<div class="breakdown-row"><b>${esc(r.topic)}</b>
+      <span class="missed"> · ${esc(r.section)}</span>
+      <div class="missed">Missed: ${r.concepts.map(esc).join(", ") || "—"}</div>
+      ${r.prerequisites.length ? `<div class="missed">Revise first: ${r.prerequisites.map(esc).join(", ")}</div>` : ""}</div>`).join("");
+  const hist = data.history || [];
+  el("history-box").hidden = hist.length < 1;
+  el("history-list").innerHTML = hist.map((h, i) => `<div class="breakdown-row-label"><span>Attempt ${i + 1}${h.finished_at ? " · " + new Date(h.finished_at * 1000).toLocaleDateString() : ""}</span>
+      <span>θ ${Number(h.theta).toFixed(2)} · ${h.correct}/${h.total}</span></div>`).join("")
+    + (hist.length > 1 ? `<div class="missed">Next attempt starts at your latest level and targets what you missed.</div>` : "");
 
   const list = el("breakdown-list");
   list.innerHTML = "";
